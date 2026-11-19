@@ -1,7 +1,5 @@
 package com.mailcrusher;
 
-import android.accounts.Account;
-import android.accounts.AccountManager;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.os.Bundle;
@@ -35,26 +33,13 @@ public class MainActivity extends AppCompatActivity {
     private HistoryDb db;
     private String activeEmail;
     private String pendingAccountEmail;
+    private static final String STATE_PENDING_EMAIL = "pending_account_email";
     private String accessToken; // memory only; re-authorize after app restart
     private GeneratedMessage preview;
     private String latestSentMessageId;
     private TextInputEditText messageCountInput;
     private TextView accountView, previewView, statusView;
     private TextInputEditText recipientInput, subjectLengthInput, bodyLengthInput;
-
-    private final ActivityResultLauncher<Intent> accountPickerLauncher =
-            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-                if (result.getResultCode() != RESULT_OK || result.getData() == null) {
-                    status("Account selection cancelled.");
-                    return;
-                }
-                String email = result.getData().getStringExtra(AccountManager.KEY_ACCOUNT_NAME);
-                if (email == null || email.trim().isEmpty()) {
-                    status("Google account was not selected.");
-                    return;
-                }
-                authorize(email.trim());
-            });
 
     private final ActivityResultLauncher<IntentSenderRequest> authLauncher =
             registerForActivityResult(new ActivityResultContracts.StartIntentSenderForResult(), result -> {
@@ -69,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     AuthorizationResult auth = Identity.getAuthorizationClient(this)
                             .getAuthorizationResultFromIntent(data);
-                    handleAuthorization(auth, pendingAccountEmail);
+                    handleAuthorization(auth);
                 } catch (com.google.android.gms.common.api.ApiException e) {
                     status("Google authorization error (status " + e.getStatusCode()
                             + "): " + e.getStatus().getStatusMessage());
@@ -83,6 +68,9 @@ public class MainActivity extends AppCompatActivity {
         androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(
                 androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES);
         super.onCreate(savedInstanceState);
+        if (savedInstanceState != null) {
+            pendingAccountEmail = savedInstanceState.getString(STATE_PENDING_EMAIL);
+        }
         setContentView(R.layout.activity_main);
         android.widget.LinearLayout rootContent = findViewById(R.id.rootContent);
         rootContent.setBackground(new AnimatedAmbientDrawable());
@@ -125,57 +113,145 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void chooseGoogleAccount() {
-        Intent picker = AccountManager.newChooseAccountIntent(
-                null, null, new String[]{"com.google"}, true,
-                "Choose a Google account to add to MailCrusher",
-                null, null, null);
-        accountPickerLauncher.launch(picker);
+        // Let Google Play services show its own account chooser. This avoids the
+        // deprecated AccountManager chooser and lets us verify the actual token owner.
+        authorize(null);
     }
 
     private void authorize(String email) {
         pendingAccountEmail = email;
-        status("Authorizing " + email + " with Google…");
+        status(email == null
+                ? "Opening Google account selection…"
+                : "Authorizing saved account " + email + "…");
+
+        java.util.List<Scope> scopes = Arrays.asList(
+                new Scope("openid"),
+                new Scope("email"),
+                new Scope(GMAIL_SEND),
+                new Scope(GMAIL_METADATA));
+
         AuthorizationRequest.Builder builder = AuthorizationRequest.builder()
-                .setRequestedScopes(Arrays.asList(new Scope(GMAIL_SEND), new Scope(USER_EMAIL), new Scope(GMAIL_METADATA)))
-                .setAccount(new Account(email, "com.google"));
+                .setRequestedScopes(scopes);
+
+        if (email != null && !email.trim().isEmpty()) {
+            builder.setAccount(new android.accounts.Account(email, "com.google"));
+        } else {
+            builder.setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT);
+        }
+
         Identity.getAuthorizationClient(this).authorize(builder.build())
                 .addOnSuccessListener(result -> {
                     if (result.hasResolution()) {
                         PendingIntent pending = result.getPendingIntent();
+                        if (pending == null) {
+                            pendingAccountEmail = null;
+                            status("Google requested additional consent but returned no authorization screen.");
+                            return;
+                        }
                         try {
-                            authLauncher.launch(new IntentSenderRequest.Builder(pending.getIntentSender()).build());
-                        } catch (Exception e) { status("Could not open Google consent: " + e.getMessage()); }
+                            authLauncher.launch(new IntentSenderRequest.Builder(
+                                    pending.getIntentSender()).build());
+                        } catch (Exception e) {
+                            pendingAccountEmail = null;
+                            status("Could not open Google consent: " + e.getClass().getSimpleName()
+                                    + ": " + e.getMessage());
+                        }
                     } else {
-                        handleAuthorization(result, email);
+                        handleAuthorization(result);
                     }
                 })
-                .addOnFailureListener(e -> status("Google authorization error: " + e.getMessage()));
+                .addOnFailureListener(e -> {
+                    pendingAccountEmail = null;
+                    String detail = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                    status("Google authorization failed: " + detail
+                            + ". Check Play Services and the Android OAuth client configuration.");
+                });
     }
 
-    private void handleAuthorization(AuthorizationResult result, String selectedEmail) {
-        String token = result.getAccessToken();
+    private void handleAuthorization(AuthorizationResult result) {
+        final String token = result.getAccessToken();
         if (token == null || token.isEmpty()) {
-            status("Google did not grant Gmail access. Choose the account and accept the requested permissions.");
+            pendingAccountEmail = null;
+            status("Google returned no access token. Authorization was not completed.");
             return;
         }
-        // Save the selected Google account directly; registration must not depend on
-        // a second userinfo HTTP request succeeding.
-        String email = selectedEmail == null ? pendingAccountEmail : selectedEmail;
-        if (email == null || email.trim().isEmpty()) {
-            status("Google access was granted, but the selected account email is missing. Please add the account again.");
+
+        java.util.List<String> granted = result.getGrantedScopes();
+        if (granted == null || !granted.contains(GMAIL_SEND)) {
+            pendingAccountEmail = null;
+            status("Gmail send permission was not granted. Accept the Gmail permission and try again.");
             return;
         }
-        email = email.trim();
-        activeEmail = email;
-        accessToken = token;
-        pendingAccountEmail = null;
-        try {
-            db.addAccount(email);
-            refreshAccounts();
-            status("Account added and authorized: " + email);
-        } catch (Exception e) {
-            status("Google access succeeded, but the account could not be saved: " + e.getMessage());
+
+        final String expectedEmail = pendingAccountEmail;
+        status("Verifying the Google account before saving it…");
+        io.execute(() -> {
+            try {
+                String verifiedEmail = fetchVerifiedGoogleEmail(token);
+                if (expectedEmail != null && !expectedEmail.equalsIgnoreCase(verifiedEmail)) {
+                    runOnUiThread(() -> {
+                        pendingAccountEmail = null;
+                        status("Account mismatch: selected " + expectedEmail
+                                + " but Google authorized " + verifiedEmail + ". Nothing was saved.");
+                    });
+                    return;
+                }
+
+                long rowId = db.addAccount(verifiedEmail);
+                if (rowId < 0) {
+                    throw new IllegalStateException("SQLite did not save the account (insert returned " + rowId + ").");
+                }
+                runOnUiThread(() -> {
+                    activeEmail = verifiedEmail;
+                    accessToken = token;
+                    pendingAccountEmail = null;
+                    refreshAccounts();
+                    status("Account verified and added: " + verifiedEmail);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    pendingAccountEmail = null;
+                    String detail = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                    status("Account was NOT added. Google account verification failed: " + detail);
+                });
+            }
+        });
+    }
+
+    private String fetchVerifiedGoogleEmail(String token) throws Exception {
+        HttpURLConnection conn = (HttpURLConnection) new URL(
+                "https://openidconnect.googleapis.com/v1/userinfo").openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(15000);
+        conn.setReadTimeout(15000);
+        conn.setRequestProperty("Authorization", "Bearer " + token);
+        int code = conn.getResponseCode();
+        java.io.InputStream stream = code >= 200 && code < 300
+                ? conn.getInputStream() : conn.getErrorStream();
+        StringBuilder response = new StringBuilder();
+        if (stream != null) {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) response.append(line);
+            }
         }
+        conn.disconnect();
+        if (code < 200 || code >= 300) {
+            throw new Exception("Google UserInfo HTTP " + code + ": " + response);
+        }
+        org.json.JSONObject profile = new org.json.JSONObject(response.toString());
+        String email = profile.optString("email", "");
+        boolean verified = profile.optBoolean("email_verified", false);
+        if (email.isEmpty() || !verified) {
+            throw new Exception("Google did not return a verified email address.");
+        }
+        return email.trim();
+    }
+
+    @Override protected void onSaveInstanceState(Bundle outState) {
+        outState.putString(STATE_PENDING_EMAIL, pendingAccountEmail);
+        super.onSaveInstanceState(outState);
     }
 
     private void generatePreview() {
