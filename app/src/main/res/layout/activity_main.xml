@@ -1,0 +1,62 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/mc_bg" android:fillViewport="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="20dp">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="MAILCRUSHER" android:textColor="@color/mc_purple"
+            android:textStyle="bold" android:textSize="26sp"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="V1.0.0 • Private test-mail workspace"
+            android:textColor="@color/mc_muted" android:paddingBottom="18dp"/>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAddAccount" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Add / authorize Gmail account"/>
+        <TextView android:id="@+id/txtAccount" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="No account authorized"
+            android:textColor="@color/mc_text" android:padding="12dp"/>
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="Recipient (V1 test mode: sender's own address)">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/edtRecipient" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:inputType="textEmailAddress"
+                android:textColor="@color/mc_text"/>
+        </com.google.android.material.textfield.TextInputLayout>
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="Subject length (1–120)">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/edtSubjectLength" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:inputType="number"
+                android:text="16" android:textColor="@color/mc_text"/>
+        </com.google.android.material.textfield.TextInputLayout>
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="Body length (1–1000)">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/edtBodyLength" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:inputType="number"
+                android:text="80" android:textColor="@color/mc_text"/>
+        </com.google.android.material.textfield.TextInputLayout>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnGenerate" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Generate test preview"/>
+        <TextView android:id="@+id/txtPreview" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:background="@color/mc_surface"
+            android:textColor="@color/mc_text" android:padding="16dp"
+            android:text="Your generated message preview will appear here."
+            android:layout_marginTop="12dp"/>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSend" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Confirm & send to myself"
+            android:layout_marginTop="12dp"/>
+        <TextView android:id="@+id/txtStatus" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:textColor="@color/mc_muted"
+            android:padding="12dp" android:text="Status: idle"/>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnHistory" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="View local sent history"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+    </LinearLayout>
+</ScrollView>
