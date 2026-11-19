@@ -4,6 +4,22 @@ android {
     namespace 'com.mailcrusher'
     compileSdk 35
 
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('MC_KEYSTORE_PATH') ?: 'release-keystore.jks')
+            storePassword System.getenv('MC_KEYSTORE_PASSWORD') ?: ''
+            keyAlias System.getenv('MC_KEY_ALIAS') ?: ''
+            keyPassword System.getenv('MC_KEY_PASSWORD') ?: ''
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
+
     defaultConfig {
         applicationId 'com.mailcrusher'
         minSdk 26
