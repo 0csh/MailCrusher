@@ -70,6 +70,15 @@ jobs:
         if: env.MC_KEYSTORE_BASE64 == ''
         run: gradle --no-daemon :app:assembleDebug
 
+      - name: Print debug APK OAuth SHA-1 fingerprint
+        if: env.MC_KEYSTORE_BASE64 == ''
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk | tee /tmp/mailcrusher-apk-certs.txt
+          grep -E 'Signer #1 certificate SHA-1 digest:' /tmp/mailcrusher-apk-certs.txt
+
       - name: Upload debug APK artifact
         if: env.MC_KEYSTORE_BASE64 == ''
         uses: actions/upload-artifact@v4
