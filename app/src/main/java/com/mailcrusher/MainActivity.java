@@ -135,9 +135,9 @@ public class MainActivity extends AppCompatActivity {
 
         if (email != null && !email.trim().isEmpty()) {
             builder.setAccount(new android.accounts.Account(email, "com.google"));
-        } else {
-            builder.setPrompt(2); // AuthorizationRequest.Prompt.SELECT_ACCOUNT (Google Play Services 21.3.0)
         }
+        // When no account is specified, Google Identity selects from the accounts
+        // available on the device and can show its consent/resolution UI as needed.
 
         Identity.getAuthorizationClient(this).authorize(builder.build())
                 .addOnSuccessListener(result -> {
