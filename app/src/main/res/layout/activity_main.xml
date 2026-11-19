@@ -1,4 +1,9 @@
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/mc_bg"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/mc_bg"
@@ -12,6 +17,14 @@
         android:paddingEnd="20dp"
         android:paddingTop="32dp"
         android:paddingBottom="30dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnOpenDrawer"
+            style="@style/Widget.MailCrusher.Button.Outlined"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="☰  MENU"
+            android:contentDescription="Open authorized recipients" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -56,7 +69,7 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Recipient email (your authorized address)">
+            android:hint="Recipient email (add it in the menu first)">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/edtRecipient"
                 android:layout_width="match_parent"
@@ -177,3 +190,61 @@
             android:layout_marginTop="14dp" />
     </LinearLayout>
 </ScrollView>
+
+    <LinearLayout
+        android:id="@+id/authorizedDrawer"
+        android:layout_width="310dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:orientation="vertical"
+        android:background="@color/mc_bg"
+        android:elevation="18dp"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="AUTHORIZED RECIPIENTS"
+            android:textColor="@color/mc_text"
+            android:textSize="19sp"
+            android:fontFamily="@font/montserrat_variable"
+            android:fontWeight="800"
+            android:paddingTop="28dp"
+            android:paddingBottom="8dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Add only addresses whose owners agreed to receive your test emails. Remove access any time."
+            android:textColor="@color/mc_muted"
+            android:textSize="12sp"
+            android:paddingBottom="16dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAddRecipient"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="+ Add authorized address" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:id="@+id/authorizedList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="12dp" />
+        </ScrollView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCloseDrawer"
+            style="@style/Widget.MailCrusher.Button.Outlined"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Close menu" />
+    </LinearLayout>
+</androidx.drawerlayout.widget.DrawerLayout>
