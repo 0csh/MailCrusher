@@ -35,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
     private String activeEmail;
     private String accessToken; // memory only; re-authorize after app restart
     private GeneratedMessage preview;
+    private TextInputEditText messageCountInput;
     private TextView accountView, previewView, statusView;
     private TextInputEditText recipientInput, subjectLengthInput, bodyLengthInput;
 
@@ -85,6 +86,7 @@ public class MainActivity extends AppCompatActivity {
         recipientInput = findViewById(R.id.edtRecipient);
         subjectLengthInput = findViewById(R.id.edtSubjectLength);
         bodyLengthInput = findViewById(R.id.edtBodyLength);
+        messageCountInput = findViewById(R.id.edtMessageCount);
 
         MaterialButton add = findViewById(R.id.btnAddAccount);
         MaterialButton generate = findViewById(R.id.btnGenerate);
@@ -159,10 +161,23 @@ public class MainActivity extends AppCompatActivity {
         try {
             int subjectLength = Integer.parseInt(subjectLengthInput.getText().toString());
             int bodyLength = Integer.parseInt(bodyLengthInput.getText().toString());
-            preview = MessageGenerator.create(subjectLength, bodyLength);
-            previewView.setText("SUBJECT\n" + preview.subject + "\n\nBODY\n" + preview.body);
-            status("Preview generated. Nothing has been sent.");
-        } catch (Exception e) { status("Invalid lengths: " + e.getMessage()); }
+            int count = Integer.parseInt(messageCountInput.getText().toString());
+            if (count < 1 || count > 5) {
+                throw new IllegalArgumentException("Preview count must be between 1 and 5.");
+            }
+            StringBuilder previews = new StringBuilder();
+            preview = null;
+            for (int i = 1; i <= count; i++) {
+                GeneratedMessage generated = MessageGenerator.create(subjectLength, bodyLength);
+                if (preview == null) preview = generated;
+                if (i > 1) previews.append("\n\n--------------------\n\n");
+                previews.append("PREVIEW ").append(i)
+                        .append("\nSUBJECT\n").append(generated.subject)
+                        .append("\n\nBODY\n").append(generated.body);
+            }
+            previewView.setText(previews.toString());
+            status(count + " preview(s) generated. Sending remains one message at a time; nothing was sent.");
+        } catch (Exception e) { status("Invalid settings: " + e.getMessage()); }
     }
 
     private void confirmSend() {
