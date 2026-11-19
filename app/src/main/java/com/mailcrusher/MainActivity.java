@@ -1,6 +1,7 @@
 package com.mailcrusher;
 
 import android.accounts.Account;
+import android.accounts.AccountManager;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.os.Bundle;
@@ -28,17 +29,28 @@ import java.util.concurrent.Executors;
 public class MainActivity extends AppCompatActivity {
     private static final String GMAIL_SEND = "https://www.googleapis.com/auth/gmail.send";
     private static final String USER_EMAIL = "https://www.googleapis.com/auth/userinfo.email";
-    private static final int MODE_ADD = 1;
-    private static final int MODE_SEND = 2;
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private HistoryDb db;
     private String activeEmail;
     private String accessToken; // memory only; re-authorize after app restart
     private GeneratedMessage preview;
-    private int authMode = MODE_ADD;
     private TextView accountView, previewView, statusView;
     private TextInputEditText recipientInput, subjectLengthInput, bodyLengthInput;
+
+    private final ActivityResultLauncher<Intent> accountPickerLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() != RESULT_OK || result.getData() == null) {
+                    status("Account selection cancelled.");
+                    return;
+                }
+                String email = result.getData().getStringExtra(AccountManager.KEY_ACCOUNT_NAME);
+                if (email == null || email.trim().isEmpty()) {
+                    status("Google account was not selected.");
+                    return;
+                }
+                authorize(email.trim());
+            });
 
     private final ActivityResultLauncher<IntentSenderRequest> authLauncher =
             registerForActivityResult(new ActivityResultContracts.StartIntentSenderForResult(), result -> {
@@ -69,24 +81,25 @@ public class MainActivity extends AppCompatActivity {
         MaterialButton send = findViewById(R.id.btnSend);
         MaterialButton history = findViewById(R.id.btnHistory);
 
-        add.setOnClickListener(v -> {
-            authMode = MODE_ADD;
-            authorize(null);
-        });
+        add.setOnClickListener(v -> chooseGoogleAccount());
         generate.setOnClickListener(v -> generatePreview());
         send.setOnClickListener(v -> confirmSend());
         history.setOnClickListener(v -> showHistory());
         refreshAccounts();
     }
 
+    private void chooseGoogleAccount() {
+        Intent picker = AccountManager.newChooseAccountIntent(
+                null, null, new String[]{"com.google"}, true,
+                "Choose a Google account to add to MailCrusher",
+                null, null, null);
+        accountPickerLauncher.launch(picker);
+    }
+
     private void authorize(String email) {
-        authMode = email == null ? MODE_ADD : MODE_SEND;
         AuthorizationRequest.Builder builder = AuthorizationRequest.builder()
-                .setRequestedScopes(Arrays.asList(new Scope(GMAIL_SEND), new Scope(USER_EMAIL)));
-        if (email == null) {
-        } else {
-            builder.setAccount(new Account(email, "com.google"));
-        }
+                .setRequestedScopes(Arrays.asList(new Scope(GMAIL_SEND), new Scope(USER_EMAIL)))
+                .setAccount(new Account(email, "com.google"));
         Identity.getAuthorizationClient(this).authorize(builder.build())
                 .addOnSuccessListener(result -> {
                     if (result.hasResolution()) {
@@ -123,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
                     activeEmail = email;
                     accessToken = token;
                     db.addAccount(email);
-                    accountView.setText("Active Gmail account: " + email);
+                    refreshAccounts();
                     status("Authorized. Access token remains in memory only.");
                 });
             } catch (Exception e) {
@@ -197,10 +210,30 @@ public class MainActivity extends AppCompatActivity {
 
     private void refreshAccounts() {
         java.util.List<String> accounts = db.accounts();
-        if (!accounts.isEmpty()) {
-            accountView.setText("Saved account profiles:\n" + android.text.TextUtils.join("\n", accounts)
-                    + "\n\nRe-authorize an account before sending.");
+        if (activeEmail != null) {
+            accountView.setText("Active Gmail account: " + activeEmail + "\nTap to switch accounts");
+        } else if (!accounts.isEmpty()) {
+            accountView.setText("Saved Gmail accounts: " +
+                    android.text.TextUtils.join(", ", accounts) + "\nTap to select an account");
+        } else {
+            accountView.setText("No Gmail account selected. Tap Add account.");
         }
+        accountView.setOnClickListener(v -> showAccountPicker());
+    }
+
+    private void showAccountPicker() {
+        java.util.List<String> accounts = db.accounts();
+        if (accounts.isEmpty()) {
+            chooseGoogleAccount();
+            return;
+        }
+        String[] choices = accounts.toArray(new String[0]);
+        new AlertDialog.Builder(this)
+                .setTitle("Select Gmail account")
+                .setItems(choices, (dialog, which) -> authorize(choices[which]))
+                .setNegativeButton("Cancel", null)
+                .setNeutralButton("Add another account", (dialog, which) -> chooseGoogleAccount())
+                .show();
     }
 
     private void status(String message) { statusView.setText("Status: " + message); }
