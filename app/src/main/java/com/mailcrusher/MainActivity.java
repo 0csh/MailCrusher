@@ -277,8 +277,8 @@ public class MainActivity extends AppCompatActivity {
             if (body.isEmpty()) throw new IllegalArgumentException("Enter the message body.");
             if (baseSubject.length() > 120) throw new IllegalArgumentException("Subject must be 120 characters or fewer.");
             if (body.length() > 10000) throw new IllegalArgumentException("Message body must be 10,000 characters or fewer.");
-            if (count < 1 || count > 5) {
-                throw new IllegalArgumentException("Message count must be between 1 and 5.");
+            if (count < 1 || count > 10) {
+                throw new IllegalArgumentException("Message count must be between 1 and 10.");
             }
 
             generatedMessages.clear();
