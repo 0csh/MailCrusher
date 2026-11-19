@@ -39,6 +39,14 @@
                 android:layout_height="wrap_content" android:inputType="number"
                 android:text="80" android:textColor="@color/mc_text"/>
         </com.google.android.material.textfield.TextInputLayout>
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="Number of previews (1–5)">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/edtMessageCount" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:inputType="number"
+                android:text="1" android:textColor="@color/mc_text"/>
+        </com.google.android.material.textfield.TextInputLayout>
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnGenerate" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:text="Generate test preview"/>
