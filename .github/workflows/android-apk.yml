@@ -29,16 +29,19 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Extract Android project
-        run: unzip -q MailCrusher-1.0.0-source.zip -d .
+      - name: Verify Android project files
+        run: |
+          test -f settings.gradle
+          test -f app/build.gradle
+          test -f app/src/main/AndroidManifest.xml
 
       - name: Build debug APK
-        run: gradle --no-daemon -p MailCrusher :app:assembleDebug
+        run: gradle --no-daemon :app:assembleDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: MailCrusher-debug-apk
-          path: MailCrusher/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
