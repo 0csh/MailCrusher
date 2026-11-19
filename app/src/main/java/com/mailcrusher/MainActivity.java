@@ -282,20 +282,16 @@ public class MainActivity extends AppCompatActivity {
             }
 
             generatedMessages.clear();
-            StringBuilder output = new StringBuilder();
             for (int i = 1; i <= count; i++) {
                 String subject = count > 1 ? baseSubject + " (" + i + ")" : baseSubject;
-                GeneratedMessage generated = new GeneratedMessage(subject, body);
-                generatedMessages.add(generated);
-                if (i > 1) output.append("\\n\\n━━━━━━━━━━━━━━━━━━━━\\n\\n");
-                output.append("MESSAGE ").append(i)
-                        .append("\\nSUBJECT\\n").append(generated.subject)
-                        .append("\\n\\nBODY\\n").append(generated.body);
+                generatedMessages.add(new GeneratedMessage(subject, body));
             }
+            // Keep generated content in the in-memory batch only; do not print it
+            // into the editable fields or the on-screen preview text.
             previewView.animate().cancel();
             previewView.setAlpha(0f);
             previewView.setTranslationY(6f);
-            previewView.setText(output.toString());
+            previewView.setText(count + " message(s) ready and stored in this session.");
             previewView.animate().alpha(1f).translationY(0f).setDuration(220L).start();
             status(count + " customized test message(s) generated. Review before sending.");
         } catch (Exception e) { status("Invalid settings: " + e.getMessage()); }
