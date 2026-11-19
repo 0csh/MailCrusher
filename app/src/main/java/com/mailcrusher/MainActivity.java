@@ -25,6 +25,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -39,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private String pendingAccountEmail;
     private static final String STATE_PENDING_EMAIL = "pending_account_email";
     private String accessToken; // memory only; re-authorize after app restart
-    private GeneratedMessage preview;
+    private final List<GeneratedMessage> generatedMessages = new ArrayList<>();
     private String latestSentMessageId;
     private TextInputEditText messageCountInput;
     private TextView accountView, previewView, statusView;
@@ -272,24 +274,24 @@ public class MainActivity extends AppCompatActivity {
             int bodyLength = Integer.parseInt(bodyLengthInput.getText().toString());
             int count = Integer.parseInt(messageCountInput.getText().toString());
             if (count < 1 || count > 5) {
-                throw new IllegalArgumentException("Preview count must be between 1 and 5.");
+                throw new IllegalArgumentException("Message count must be between 1 and 5.");
             }
-            StringBuilder previews = new StringBuilder();
-            preview = null;
+            generatedMessages.clear();
+            StringBuilder output = new StringBuilder();
             for (int i = 1; i <= count; i++) {
                 GeneratedMessage generated = MessageGenerator.create(subjectLength, bodyLength);
-                if (preview == null) preview = generated;
-                if (i > 1) previews.append("\n\n--------------------\n\n");
-                previews.append("PREVIEW ").append(i)
-                        .append("\nSUBJECT\n").append(generated.subject)
-                        .append("\n\nBODY\n").append(generated.body);
+                generatedMessages.add(generated);
+                if (i > 1) output.append("\\n\\n━━━━━━━━━━━━━━━━━━━━\\n\\n");
+                output.append("MESSAGE ").append(i)
+                        .append("\\nSUBJECT\\n").append(generated.subject)
+                        .append("\\n\\nBODY\\n").append(generated.body);
             }
             previewView.animate().cancel();
             previewView.setAlpha(0f);
             previewView.setTranslationY(6f);
-            previewView.setText(previews.toString());
+            previewView.setText(output.toString());
             previewView.animate().alpha(1f).translationY(0f).setDuration(220L).start();
-            status(count + " draft(s) generated. Review them below; send one at a time after confirmation.");
+            status(count + " message(s) generated. Review all messages before sending.");
         } catch (Exception e) { status("Invalid settings: " + e.getMessage()); }
     }
 
@@ -298,8 +300,8 @@ public class MainActivity extends AppCompatActivity {
             status("Authorize a Gmail account first.");
             return;
         }
-        if (preview == null) {
-            status("Generate and review a message first.");
+        if (generatedMessages.isEmpty()) {
+            status("Generate messages first.");
             return;
         }
         String recipient = recipientInput.getText() == null ? "" :
@@ -317,32 +319,64 @@ public class MainActivity extends AppCompatActivity {
             status("Local safety interval active. Try again in " + seconds + " seconds.");
             return;
         }
+        final int count = generatedMessages.size();
         new AlertDialog.Builder(this)
-                .setTitle("Confirm test email")
-                .setMessage("Send this single test message from " + activeEmail + " to " + recipient + "?\n\nSubject: " + preview.subject)
+                .setTitle("Confirm test batch")
+                .setMessage("Send all " + count + " generated test message(s) from " + activeEmail
+                        + " to the authorized address " + recipient + "?\\n\\n"
+                        + "Messages will be sent one by one with the safety interval between sends.")
                 .setNegativeButton("Cancel", (d, w) -> {})
-                .setPositiveButton("Send one email", (d, w) -> sendConfirmed(recipient))
+                .setPositiveButton("Send all " + count, (d, w) -> sendConfirmed(recipient))
                 .show();
     }
 
     private void sendConfirmed(String recipient) {
         final String token = accessToken;
         final String sender = activeEmail;
-        final GeneratedMessage message = preview;
-        RateLimiter.recordSendAttempt(this);
-        status("Sending one confirmed test message…");
+        final List<GeneratedMessage> batch = new ArrayList<>(generatedMessages);
+        status("Starting confirmed batch of " + batch.size() + " message(s)…");
         io.execute(() -> {
-            try {
-                String messageId = GmailApiClient.sendOne(token, sender, recipient, message.subject, message.body);
-                runOnUiThread(() -> {
-                    latestSentMessageId = messageId;
-                    db.addHistory(recipient, message.subject, "Accepted by Gmail; ID " + messageId);
-                    status("Gmail accepted the message. Use Check send status to verify it in Sent.");
-                });
-            } catch (Exception e) {
-                db.addHistory(recipient, message.subject, "Failed: " + e.getMessage());
-                runOnUiThread(() -> status("Send failed: " + e.getMessage()));
+            int sent = 0;
+            String lastMessageId = null;
+            for (int i = 0; i < batch.size(); i++) {
+                GeneratedMessage message = batch.get(i);
+                try {
+                    long waitMs = RateLimiter.remainingMs(this);
+                    if (waitMs > 0) Thread.sleep(waitMs);
+                    RateLimiter.recordSendAttempt(this);
+                    final int current = i + 1;
+                    runOnUiThread(() -> status("Sending message " + current + " of " + batch.size() + "…"));
+                    String messageId = GmailApiClient.sendOne(
+                            token, sender, recipient, message.subject, message.body);
+                    lastMessageId = messageId;
+                    sent++;
+                    db.addHistory(recipient, message.subject,
+                            "Accepted by Gmail; ID " + messageId);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    db.addHistory(recipient, message.subject, "Stopped before send: interrupted");
+                    break;
+                } catch (Exception e) {
+                    db.addHistory(recipient, message.subject, "Failed: " + e.getMessage());
+                    final String error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                    final int completed = sent;
+                    runOnUiThread(() -> status("Batch stopped after " + completed
+                            + " successful send(s). Error: " + error));
+                    break;
+                }
             }
+            final int completed = sent;
+            final String finalId = lastMessageId;
+            runOnUiThread(() -> {
+                if (finalId != null) latestSentMessageId = finalId;
+                if (completed == batch.size()) {
+                    status("Gmail accepted all " + completed
+                            + " message(s). Check send status to verify the latest one in Sent.");
+                } else if (completed > 0) {
+                    status("Gmail accepted " + completed + " of " + batch.size()
+                            + " message(s). The batch stopped; see sent history.");
+                }
+            });
         });
     }
 
