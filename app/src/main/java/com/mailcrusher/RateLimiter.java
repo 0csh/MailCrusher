@@ -6,7 +6,7 @@ import android.content.SharedPreferences;
 public final class RateLimiter {
     private static final String PREFS = "mailcrusher_rate_limit";
     private static final String LAST_SEND = "last_send_ms";
-    public static final long MIN_INTERVAL_MS = 60_000L;
+    public static final long MIN_INTERVAL_MS = 0.1_000L;
 
     private RateLimiter() {}
 
