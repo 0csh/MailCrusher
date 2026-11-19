@@ -44,6 +44,8 @@ public class MainActivity extends AppCompatActivity {
     private final List<GeneratedMessage> generatedMessages = new ArrayList<>();
     private String latestSentMessageId;
     private TextInputEditText messageCountInput;
+    private com.google.android.material.slider.Slider intervalSlider;
+    private TextView intervalValueView;
     private TextView accountView, previewView, statusView;
     private TextInputEditText recipientInput, subjectInput, bodyInput;
     private DrawerLayout drawerLayout;
@@ -91,6 +93,16 @@ public class MainActivity extends AppCompatActivity {
         subjectInput = findViewById(R.id.edtSubject);
         bodyInput = findViewById(R.id.edtBody);
         messageCountInput = findViewById(R.id.edtMessageCount);
+        intervalSlider = findViewById(R.id.sliderInterval);
+        intervalValueView = findViewById(R.id.txtIntervalValue);
+        int savedInterval = getPreferences(MODE_PRIVATE).getInt("interval_seconds", 60);
+        intervalSlider.setValue(Math.max(60, Math.min(3600, savedInterval)));
+        updateIntervalLabel();
+        intervalSlider.addOnChangeListener((slider, value, fromUser) -> {
+            int seconds = Math.max(60, Math.min(3600, Math.round(value)));
+            getPreferences(MODE_PRIVATE).edit().putInt("interval_seconds", seconds).apply();
+            updateIntervalLabel();
+        });
         drawerLayout = findViewById(R.id.drawerLayout);
         authorizedList = findViewById(R.id.authorizedList);
         findViewById(R.id.btnOpenDrawer).setOnClickListener(v -> drawerLayout.openDrawer(android.view.Gravity.START));
@@ -126,10 +138,26 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private final ActivityResultLauncher<Intent> deviceAccountPicker =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                Intent data = result.getData();
+                String email = data == null ? null :
+                        data.getStringExtra(android.accounts.AccountManager.KEY_ACCOUNT_NAME);
+                if (result.getResultCode() == RESULT_OK && email != null && !email.trim().isEmpty()) {
+                    authorize(email.trim());
+                } else {
+                    pendingAccountEmail = null;
+                    status("Account selection cancelled. No account was added.");
+                }
+            });
+
     private void chooseGoogleAccount() {
-        // Let Google Play services show its own account chooser. This avoids the
-        // deprecated AccountManager chooser and lets us verify the actual token owner.
-        authorize(null);
+        // Ask Android's system account picker so the user can explicitly choose
+        // a different Google account instead of silently reusing the default one.
+        Intent picker = android.accounts.AccountManager.newChooseAccountIntent(
+                null, null, new String[]{"com.google"}, false,
+                "Choose a Gmail account to connect", null, null, null);
+        deviceAccountPicker.launch(picker);
     }
 
     private void authorize(String email) {
@@ -316,8 +344,8 @@ public class MainActivity extends AppCompatActivity {
             status("This address is not on your authorized recipients list. Open the menu to add it.");
             return;
         }
-        if (!RateLimiter.canSend(this)) {
-            long seconds = (RateLimiter.remainingMs(this) + 999) / 1000;
+        if (!RateLimiter.canSend(this, intervalMs())) {
+            long seconds = (RateLimiter.remainingMs(this, intervalMs()) + 999) / 1000;
             status("Local safety interval active. Try again in " + seconds + " seconds.");
             return;
         }
@@ -343,7 +371,7 @@ public class MainActivity extends AppCompatActivity {
             for (int i = 0; i < batch.size(); i++) {
                 GeneratedMessage message = batch.get(i);
                 try {
-                    long waitMs = RateLimiter.remainingMs(this);
+                    long waitMs = RateLimiter.remainingMs(this, intervalMs());
                     if (waitMs > 0) Thread.sleep(waitMs);
                     RateLimiter.recordSendAttempt(this);
                     final int current = i + 1;
@@ -442,7 +470,38 @@ public class MainActivity extends AppCompatActivity {
                     if (which == accounts.size()) chooseGoogleAccount();
                     else authorize(accounts.get(which));
                 })
+                .setNeutralButton("Remove account", (dialog, which) -> showRemoveAccountPicker())
                 .setNegativeButton("Close", null)
+                .show();
+    }
+
+    private void showRemoveAccountPicker() {
+        java.util.List<String> accounts = db.accounts();
+        if (accounts.isEmpty()) {
+            status("There are no saved accounts to remove.");
+            return;
+        }
+        String[] choices = accounts.toArray(new String[0]);
+        new AlertDialog.Builder(this)
+                .setTitle("Remove saved Gmail account")
+                .setItems(choices, (dialog, which) -> {
+                    String email = choices[which];
+                    new AlertDialog.Builder(this)
+                            .setTitle("Remove account?")
+                            .setMessage("Remove " + email + " from MailCrusher? This does not remove it from the device or revoke Google access.")
+                            .setNegativeButton("Cancel", null)
+                            .setPositiveButton("Remove", (d, w) -> {
+                                db.removeAccount(email);
+                                if (email.equalsIgnoreCase(activeEmail == null ? "" : activeEmail)) {
+                                    activeEmail = null;
+                                    accessToken = null;
+                                }
+                                refreshAccounts();
+                                status("Removed saved account: " + email);
+                            })
+                            .show();
+                })
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 
@@ -516,6 +575,15 @@ public class MainActivity extends AppCompatActivity {
             divider.setBackgroundColor(0x334B5563);
             authorizedList.addView(divider, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1));
         }
+    }
+
+    private long intervalMs() {
+        return (long) Math.round(intervalSlider.getValue()) * 1000L;
+    }
+
+    private void updateIntervalLabel() {
+        int seconds = Math.round(intervalSlider.getValue());
+        intervalValueView.setText(seconds + " seconds");
     }
 
     private void status(String message) { statusView.setText("Status: " + message); }
