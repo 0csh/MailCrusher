@@ -18,10 +18,10 @@ public class HistoryDb extends SQLiteOpenHelper {
 
     @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {}
 
-    public void addAccount(String email) {
+    public long addAccount(String email) {
         ContentValues v = new ContentValues();
         v.put("email", email); v.put("added_at", System.currentTimeMillis());
-        getWritableDatabase().insertWithOnConflict("accounts", null, v, SQLiteDatabase.CONFLICT_REPLACE);
+        return getWritableDatabase().insertWithOnConflict("accounts", null, v, SQLiteDatabase.CONFLICT_REPLACE);
     }
 
     public List<String> accounts() {
