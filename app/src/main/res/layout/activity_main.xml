@@ -18,7 +18,8 @@
             android:layout_height="wrap_content"
             android:text="MailCrusher V1"
             android:textColor="@color/mc_text"
-            android:fontFamily="sans-serif-black"
+            android:fontFamily="@font/montserrat_variable"
+            android:fontWeight="800"
             android:letterSpacing="-0.025"
             android:textSize="30sp"
             android:paddingBottom="24dp" />
@@ -35,7 +36,8 @@
             android:layout_height="wrap_content"
             android:text="No Gmail account selected. Tap Connect Gmail account."
             android:textColor="@color/mc_text"
-            android:fontFamily="sans-serif-medium"
+            android:fontFamily="@font/montserrat_variable"
+                android:fontWeight="600"
             android:background="@drawable/bg_surface"
             android:padding="17dp"
             android:layout_marginBottom="22dp" />
@@ -45,7 +47,8 @@
             android:layout_height="wrap_content"
             android:text="MESSAGE SETTINGS"
             android:textColor="@color/mc_muted"
-            android:fontFamily="sans-serif-black"
+            android:fontFamily="@font/montserrat_variable"
+            android:fontWeight="800"
             android:letterSpacing="0.08"
             android:textSize="11sp"
             android:paddingBottom="10dp" />
@@ -60,7 +63,8 @@
                 android:layout_height="wrap_content"
                 android:inputType="textEmailAddress"
                 android:textColor="@color/mc_text"
-                android:fontFamily="sans-serif-medium" />
+                android:fontFamily="@font/montserrat_variable"
+                android:fontWeight="600" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
@@ -74,7 +78,8 @@
                 android:inputType="number"
                 android:text="16"
                 android:textColor="@color/mc_text"
-                android:fontFamily="sans-serif-medium" />
+                android:fontFamily="@font/montserrat_variable"
+                android:fontWeight="600" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
@@ -88,7 +93,8 @@
                 android:inputType="number"
                 android:text="80"
                 android:textColor="@color/mc_text"
-                android:fontFamily="sans-serif-medium" />
+                android:fontFamily="@font/montserrat_variable"
+                android:fontWeight="600" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
@@ -102,7 +108,8 @@
                 android:inputType="number"
                 android:text="1"
                 android:textColor="@color/mc_text"
-                android:fontFamily="sans-serif-medium" />
+                android:fontFamily="@font/montserrat_variable"
+                android:fontWeight="600" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.button.MaterialButton
@@ -117,7 +124,8 @@
             android:layout_height="wrap_content"
             android:text="PREVIEW"
             android:textColor="@color/mc_muted"
-            android:fontFamily="sans-serif-black"
+            android:fontFamily="@font/montserrat_variable"
+            android:fontWeight="800"
             android:letterSpacing="0.08"
             android:textSize="11sp"
             android:paddingTop="22dp"
@@ -129,7 +137,8 @@
             android:layout_height="wrap_content"
             android:background="@drawable/bg_surface"
             android:textColor="@color/mc_text"
-            android:fontFamily="sans-serif-medium"
+            android:fontFamily="@font/montserrat_variable"
+                android:fontWeight="600"
             android:padding="17dp"
             android:text="Your generated drafts will appear here." />
 
@@ -152,7 +161,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="@color/mc_text"
-            android:fontFamily="sans-serif-medium"
+            android:fontFamily="@font/montserrat_variable"
+                android:fontWeight="600"
             android:background="@drawable/bg_surface"
             android:padding="15dp"
             android:layout_marginTop="12dp"
