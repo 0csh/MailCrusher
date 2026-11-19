@@ -34,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private HistoryDb db;
     private String activeEmail;
+    private String pendingAccountEmail;
     private String accessToken; // memory only; re-authorize after app restart
     private GeneratedMessage preview;
     private String latestSentMessageId;
@@ -68,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     AuthorizationResult auth = Identity.getAuthorizationClient(this)
                             .getAuthorizationResultFromIntent(data);
-                    handleAuthorization(auth);
+                    handleAuthorization(auth, pendingAccountEmail);
                 } catch (com.google.android.gms.common.api.ApiException e) {
                     status("Google authorization error (status " + e.getStatusCode()
                             + "): " + e.getStatus().getStatusMessage());
@@ -130,6 +131,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void authorize(String email) {
+        pendingAccountEmail = email;
+        status("Authorizing " + email + " with Google…");
         AuthorizationRequest.Builder builder = AuthorizationRequest.builder()
                 .setRequestedScopes(Arrays.asList(new Scope(GMAIL_SEND), new Scope(USER_EMAIL), new Scope(GMAIL_METADATA)))
                 .setAccount(new Account(email, "com.google"));
@@ -141,41 +144,36 @@ public class MainActivity extends AppCompatActivity {
                             authLauncher.launch(new IntentSenderRequest.Builder(pending.getIntentSender()).build());
                         } catch (Exception e) { status("Could not open Google consent: " + e.getMessage()); }
                     } else {
-                        handleAuthorization(result);
+                        handleAuthorization(result, email);
                     }
                 })
                 .addOnFailureListener(e -> status("Google authorization error: " + e.getMessage()));
     }
 
-    private void handleAuthorization(AuthorizationResult result) {
+    private void handleAuthorization(AuthorizationResult result, String selectedEmail) {
         String token = result.getAccessToken();
         if (token == null || token.isEmpty()) {
-            status("Google did not return an access token.");
+            status("Google did not grant Gmail access. Choose the account and accept the requested permissions.");
             return;
         }
-        io.execute(() -> {
-            try {
-                HttpURLConnection c = (HttpURLConnection) new URL(
-                        "https://www.googleapis.com/oauth2/v2/userinfo").openConnection();
-                c.setRequestProperty("Authorization", "Bearer " + token);
-                int code = c.getResponseCode();
-                if (code < 200 || code >= 300) throw new Exception("User info HTTP " + code);
-                BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8));
-                StringBuilder json = new StringBuilder(); String line;
-                while ((line = r.readLine()) != null) json.append(line);
-                r.close(); c.disconnect();
-                String email = new org.json.JSONObject(json.toString()).getString("email");
-                runOnUiThread(() -> {
-                    activeEmail = email;
-                    accessToken = token;
-                    db.addAccount(email);
-                    refreshAccounts();
-                    status("Authorized. Access token remains in memory only.");
-                });
-            } catch (Exception e) {
-                runOnUiThread(() -> status("Could not read authorized account: " + e.getMessage()));
-            }
-        });
+        // Save the selected Google account directly; registration must not depend on
+        // a second userinfo HTTP request succeeding.
+        String email = selectedEmail == null ? pendingAccountEmail : selectedEmail;
+        if (email == null || email.trim().isEmpty()) {
+            status("Google access was granted, but the selected account email is missing. Please add the account again.");
+            return;
+        }
+        email = email.trim();
+        activeEmail = email;
+        accessToken = token;
+        pendingAccountEmail = null;
+        try {
+            db.addAccount(email);
+            refreshAccounts();
+            status("Account added and authorized: " + email);
+        } catch (Exception e) {
+            status("Google access succeeded, but the account could not be saved: " + e.getMessage());
+        }
     }
 
     private void generatePreview() {
@@ -287,10 +285,9 @@ public class MainActivity extends AppCompatActivity {
     private void refreshAccounts() {
         java.util.List<String> accounts = db.accounts();
         if (activeEmail != null) {
-            accountView.setText("Active Gmail account: " + activeEmail + "\nTap to switch accounts");
+            accountView.setText("CONNECTED  •  " + activeEmail + "\n" + accounts.size() + " saved account(s)  •  Tap to manage");
         } else if (!accounts.isEmpty()) {
-            accountView.setText("Saved Gmail accounts: " +
-                    android.text.TextUtils.join(", ", accounts) + "\nTap to select an account");
+            accountView.setText(accounts.size() + " saved Gmail account(s)\nTap to select or add an account");
         } else {
             accountView.setText("No Gmail account selected. Tap Add account.");
         }
@@ -303,12 +300,19 @@ public class MainActivity extends AppCompatActivity {
             chooseGoogleAccount();
             return;
         }
-        String[] choices = accounts.toArray(new String[0]);
+        String[] choices = new String[accounts.size() + 1];
+        for (int i = 0; i < accounts.size(); i++) {
+            choices[i] = (accounts.get(i).equalsIgnoreCase(activeEmail == null ? "" : activeEmail)
+                    ? "✓  " : "") + accounts.get(i);
+        }
+        choices[accounts.size()] = "+  Add another account";
         new AlertDialog.Builder(this)
-                .setTitle("Select Gmail account")
-                .setItems(choices, (dialog, which) -> authorize(choices[which]))
-                .setNegativeButton("Cancel", null)
-                .setNeutralButton("Add another account", (dialog, which) -> chooseGoogleAccount())
+                .setTitle("Gmail accounts")
+                .setItems(choices, (dialog, which) -> {
+                    if (which == accounts.size()) chooseGoogleAccount();
+                    else authorize(accounts.get(which));
+                })
+                .setNegativeButton("Close", null)
                 .show();
     }
 
