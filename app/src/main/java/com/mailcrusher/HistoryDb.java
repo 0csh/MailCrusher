@@ -9,14 +9,48 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class HistoryDb extends SQLiteOpenHelper {
-    public HistoryDb(Context c) { super(c, "mailcrusher.db", null, 1); }
+    public HistoryDb(Context c) { super(c, "mailcrusher.db", null, 2); }
 
     @Override public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE sent_history (id INTEGER PRIMARY KEY AUTOINCREMENT, recipient TEXT NOT NULL, subject TEXT NOT NULL, sent_at INTEGER NOT NULL, status TEXT NOT NULL)");
         db.execSQL("CREATE TABLE accounts (email TEXT PRIMARY KEY, added_at INTEGER NOT NULL)");
+        db.execSQL("CREATE TABLE authorized_recipients (email TEXT PRIMARY KEY, added_at INTEGER NOT NULL)");
     }
 
-    @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {}
+    @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        if (oldVersion < 2) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS authorized_recipients (email TEXT PRIMARY KEY, added_at INTEGER NOT NULL)");
+        }
+    }
+
+    public long addAuthorizedRecipient(String email) {
+        ContentValues v = new ContentValues();
+        v.put("email", email);
+        v.put("added_at", System.currentTimeMillis());
+        return getWritableDatabase().insertWithOnConflict(
+                "authorized_recipients", null, v, SQLiteDatabase.CONFLICT_IGNORE);
+    }
+
+    public List<String> authorizedRecipients() {
+        List<String> result = new ArrayList<>();
+        try (Cursor c = getReadableDatabase().rawQuery(
+                "SELECT email FROM authorized_recipients ORDER BY added_at DESC", null)) {
+            while (c.moveToNext()) result.add(c.getString(0));
+        }
+        return result;
+    }
+
+    public void removeAuthorizedRecipient(String email) {
+        getWritableDatabase().delete("authorized_recipients", "email=?", new String[]{email});
+    }
+
+    public boolean isRecipientAuthorized(String email) {
+        try (Cursor c = getReadableDatabase().rawQuery(
+                "SELECT 1 FROM authorized_recipients WHERE lower(email)=lower(?) LIMIT 1",
+                new String[]{email})) {
+            return c.moveToFirst();
+        }
+    }
 
     public long addAccount(String email) {
         ContentValues v = new ContentValues();
