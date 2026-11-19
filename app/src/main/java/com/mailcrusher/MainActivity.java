@@ -136,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
         if (email != null && !email.trim().isEmpty()) {
             builder.setAccount(new android.accounts.Account(email, "com.google"));
         } else {
-            builder.setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT);
+            builder.setPrompt(2); // AuthorizationRequest.Prompt.SELECT_ACCOUNT (Google Play Services 21.3.0)
         }
 
         Identity.getAuthorizationClient(this).authorize(builder.build())
