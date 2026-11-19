@@ -35,6 +35,14 @@ jobs:
           test -f app/build.gradle
           test -f app/src/main/AndroidManifest.xml
 
+      - name: Fetch Montserrat variable font
+        run: |
+          mkdir -p app/src/main/res/font
+          curl --fail --location --silent --show-error \
+            "https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/Montserrat%5Bwght%5D.ttf" \
+            --output app/src/main/res/font/montserrat_variable.ttf
+          test -s app/src/main/res/font/montserrat_variable.ttf
+
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug
 
