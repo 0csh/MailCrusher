@@ -128,7 +128,7 @@
             android:id="@+id/txtIntervalValue"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="60 seconds"
+            android:text="3 seconds"
             android:textColor="@color/mc_text"
             android:fontFamily="@font/montserrat_variable"
             android:fontWeight="700"
@@ -138,10 +138,10 @@
             android:id="@+id/sliderInterval"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:valueFrom="60"
-            android:valueTo="3600"
-            android:stepSize="1"
-            android:value="60"
+            android:valueFrom="0.1"
+            android:valueTo="60"
+            android:stepSize="0.1"
+            android:value="3"
             app:labelBehavior="withinBounds" />
 
         <com.google.android.material.textfield.TextInputLayout
