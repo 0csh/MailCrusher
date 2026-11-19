@@ -29,12 +29,14 @@ import java.util.concurrent.Executors;
 public class MainActivity extends AppCompatActivity {
     private static final String GMAIL_SEND = "https://www.googleapis.com/auth/gmail.send";
     private static final String USER_EMAIL = "https://www.googleapis.com/auth/userinfo.email";
+    private static final String GMAIL_METADATA = "https://www.googleapis.com/auth/gmail.metadata";
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private HistoryDb db;
     private String activeEmail;
     private String accessToken; // memory only; re-authorize after app restart
     private GeneratedMessage preview;
+    private String latestSentMessageId;
     private TextInputEditText messageCountInput;
     private TextView accountView, previewView, statusView;
     private TextInputEditText recipientInput, subjectLengthInput, bodyLengthInput;
@@ -92,11 +94,13 @@ public class MainActivity extends AppCompatActivity {
         MaterialButton generate = findViewById(R.id.btnGenerate);
         MaterialButton send = findViewById(R.id.btnSend);
         MaterialButton history = findViewById(R.id.btnHistory);
+        MaterialButton checkStatus = findViewById(R.id.btnCheckStatus);
 
         add.setOnClickListener(v -> chooseGoogleAccount());
         generate.setOnClickListener(v -> generatePreview());
         send.setOnClickListener(v -> confirmSend());
         history.setOnClickListener(v -> showHistory());
+        checkStatus.setOnClickListener(v -> checkLatestSendStatus());
         refreshAccounts();
     }
 
@@ -110,7 +114,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void authorize(String email) {
         AuthorizationRequest.Builder builder = AuthorizationRequest.builder()
-                .setRequestedScopes(Arrays.asList(new Scope(GMAIL_SEND), new Scope(USER_EMAIL)))
+                .setRequestedScopes(Arrays.asList(new Scope(GMAIL_SEND), new Scope(USER_EMAIL), new Scope(GMAIL_METADATA)))
                 .setAccount(new Account(email, "com.google"));
         Identity.getAuthorizationClient(this).authorize(builder.build())
                 .addOnSuccessListener(result -> {
@@ -176,7 +180,7 @@ public class MainActivity extends AppCompatActivity {
                         .append("\n\nBODY\n").append(generated.body);
             }
             previewView.setText(previews.toString());
-            status(count + " preview(s) generated. Sending remains one message at a time; nothing was sent.");
+            status(count + " draft(s) generated. Review them below; send one at a time after confirmation.");
         } catch (Exception e) { status("Invalid settings: " + e.getMessage()); }
     }
 
@@ -216,12 +220,38 @@ public class MainActivity extends AppCompatActivity {
         status("Sending one confirmed test message…");
         io.execute(() -> {
             try {
-                GmailApiClient.sendOne(token, sender, recipient, message.subject, message.body);
-                db.addHistory(recipient, message.subject, "API accepted");
-                runOnUiThread(() -> status("Gmail API accepted the message. Check your Sent folder."));
+                String messageId = GmailApiClient.sendOne(token, sender, recipient, message.subject, message.body);
+                runOnUiThread(() -> {
+                    latestSentMessageId = messageId;
+                    db.addHistory(recipient, message.subject, "Accepted by Gmail; ID " + messageId);
+                    status("Gmail accepted the message. Use Check send status to verify it in Sent.");
+                });
             } catch (Exception e) {
                 db.addHistory(recipient, message.subject, "Failed: " + e.getMessage());
                 runOnUiThread(() -> status("Send failed: " + e.getMessage()));
+            }
+        });
+    }
+
+
+    private void checkLatestSendStatus() {
+        if (accessToken == null) {
+            status("Authorize the Gmail account used to send the message first.");
+            return;
+        }
+        if (latestSentMessageId == null || latestSentMessageId.isEmpty()) {
+            status("No message ID in this app session. Send a test message first.");
+            return;
+        }
+        final String token = accessToken;
+        final String messageId = latestSentMessageId;
+        status("Checking message status with Gmail…");
+        io.execute(() -> {
+            try {
+                String result = GmailApiClient.checkSentStatus(token, messageId);
+                runOnUiThread(() -> status(result));
+            } catch (Exception e) {
+                runOnUiThread(() -> status("Status check failed: " + e.getMessage()));
             }
         });
     }
