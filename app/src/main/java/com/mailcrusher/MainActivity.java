@@ -81,6 +81,9 @@ public class MainActivity extends AppCompatActivity {
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        android.widget.LinearLayout rootContent = findViewById(R.id.rootContent);
+        rootContent.setBackground(new AnimatedAmbientDrawable());
+        animateEntrance();
         db = new HistoryDb(this);
         accountView = findViewById(R.id.txtAccount);
         previewView = findViewById(R.id.txtPreview);
@@ -102,6 +105,20 @@ public class MainActivity extends AppCompatActivity {
         history.setOnClickListener(v -> showHistory());
         checkStatus.setOnClickListener(v -> checkLatestSendStatus());
         refreshAccounts();
+    }
+
+
+    private void animateEntrance() {
+        android.view.ViewGroup root = findViewById(R.id.rootContent);
+        for (int i = 0; i < root.getChildCount(); i++) {
+            android.view.View child = root.getChildAt(i);
+            child.setAlpha(0f);
+            child.setTranslationY(12f);
+            child.animate().alpha(1f).translationY(0f)
+                    .setStartDelay(i * 35L).setDuration(280L)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                    .start();
+        }
     }
 
     private void chooseGoogleAccount() {
@@ -179,7 +196,11 @@ public class MainActivity extends AppCompatActivity {
                         .append("\nSUBJECT\n").append(generated.subject)
                         .append("\n\nBODY\n").append(generated.body);
             }
+            previewView.animate().cancel();
+            previewView.setAlpha(0f);
+            previewView.setTranslationY(6f);
             previewView.setText(previews.toString());
+            previewView.animate().alpha(1f).translationY(0f).setDuration(220L).start();
             status(count + " draft(s) generated. Review them below; send one at a time after confirmation.");
         } catch (Exception e) { status("Invalid settings: " + e.getMessage()); }
     }
