@@ -147,7 +147,7 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Number of messages (1–10)">
+            android:hint="Number of messages (1–1000)">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/edtMessageCount"
                 android:layout_width="match_parent"
