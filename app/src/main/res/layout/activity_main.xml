@@ -49,7 +49,7 @@
             android:layout_marginTop="12dp"/>
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSend" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:text="Confirm & send to myself"
+            android:layout_height="wrap_content" android:text="Confirm &amp; send to myself"
             android:layout_marginTop="12dp"/>
         <TextView android:id="@+id/txtStatus" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:textColor="@color/mc_muted"
