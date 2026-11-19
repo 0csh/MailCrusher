@@ -54,15 +54,25 @@ public class MainActivity extends AppCompatActivity {
 
     private final ActivityResultLauncher<IntentSenderRequest> authLauncher =
             registerForActivityResult(new ActivityResultContracts.StartIntentSenderForResult(), result -> {
-                if (result.getResultCode() != RESULT_OK || result.getData() == null) {
-                    status("Authorization cancelled.");
+                // Google Identity may return a useful authorization result even when
+                // ActivityResult reports RESULT_CANCELED. Always inspect the returned Intent.
+                Intent data = result.getData();
+                if (data == null) {
+                    status("Google returned no authorization data (result code "
+                            + result.getResultCode() + "). Try again and check the Google consent screen.");
                     return;
                 }
                 try {
                     AuthorizationResult auth = Identity.getAuthorizationClient(this)
-                            .getAuthorizationResultFromIntent(result.getData());
+                            .getAuthorizationResultFromIntent(data);
                     handleAuthorization(auth);
-                } catch (Exception e) { status("Authorization failed: " + e.getMessage()); }
+                } catch (com.google.android.gms.common.api.ApiException e) {
+                    status("Google authorization error (status " + e.getStatusCode()
+                            + "): " + e.getStatus().getStatusMessage());
+                } catch (Exception e) {
+                    status("Authorization result could not be read: " + e.getClass().getSimpleName()
+                            + ": " + e.getMessage());
+                }
             });
 
     @Override protected void onCreate(Bundle savedInstanceState) {
