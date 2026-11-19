@@ -21,7 +21,8 @@
         <item name="backgroundTint">@color/mc_button</item>
         <item name="android:textColor">@color/mc_text</item>
         <item name="android:textAllCaps">false</item>
-        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:fontFamily">@font/montserrat_variable</item>
+        <item name="android:fontWeight">600</item>
         <item name="android:minHeight">50dp</item>
         <item name="android:insetTop">3dp</item>
         <item name="android:insetBottom">3dp</item>
