@@ -85,13 +85,13 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Subject length (1–120)">
+            android:hint="Your email subject (max 120 characters)">
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/edtSubjectLength"
+                android:id="@+id/edtSubject"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="number"
-                android:text="16"
+                android:inputType="textCapSentences"
+                android:maxLength="120"
                 android:textColor="@color/mc_text"
                 android:fontFamily="@font/montserrat_variable"
                 android:fontWeight="600" />
@@ -100,13 +100,15 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Message body length (1–1000)">
+            android:hint="Your message body">
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/edtBodyLength"
+                android:id="@+id/edtBody"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="number"
-                android:text="80"
+                android:inputType="textCapSentences|textMultiLine"
+                android:minLines="4"
+                android:maxLines="8"
+                android:gravity="top|start"
                 android:textColor="@color/mc_text"
                 android:fontFamily="@font/montserrat_variable"
                 android:fontWeight="600" />
