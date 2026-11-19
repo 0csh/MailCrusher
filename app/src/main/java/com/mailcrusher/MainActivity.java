@@ -4,6 +4,10 @@ import android.app.PendingIntent;
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.TextView;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.view.ViewGroup;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.IntentSenderRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -40,6 +44,8 @@ public class MainActivity extends AppCompatActivity {
     private TextInputEditText messageCountInput;
     private TextView accountView, previewView, statusView;
     private TextInputEditText recipientInput, subjectLengthInput, bodyLengthInput;
+    private DrawerLayout drawerLayout;
+    private LinearLayout authorizedList;
 
     private final ActivityResultLauncher<IntentSenderRequest> authLauncher =
             registerForActivityResult(new ActivityResultContracts.StartIntentSenderForResult(), result -> {
@@ -83,6 +89,11 @@ public class MainActivity extends AppCompatActivity {
         subjectLengthInput = findViewById(R.id.edtSubjectLength);
         bodyLengthInput = findViewById(R.id.edtBodyLength);
         messageCountInput = findViewById(R.id.edtMessageCount);
+        drawerLayout = findViewById(R.id.drawerLayout);
+        authorizedList = findViewById(R.id.authorizedList);
+        findViewById(R.id.btnOpenDrawer).setOnClickListener(v -> drawerLayout.openDrawer(android.view.Gravity.START));
+        findViewById(R.id.btnCloseDrawer).setOnClickListener(v -> drawerLayout.closeDrawer(android.view.Gravity.START));
+        findViewById(R.id.btnAddRecipient).setOnClickListener(v -> showAddAuthorizedRecipient());
 
         MaterialButton add = findViewById(R.id.btnAddAccount);
         MaterialButton generate = findViewById(R.id.btnGenerate);
@@ -96,6 +107,7 @@ public class MainActivity extends AppCompatActivity {
         history.setOnClickListener(v -> showHistory());
         checkStatus.setOnClickListener(v -> checkLatestSendStatus());
         refreshAccounts();
+        refreshAuthorizedRecipients();
     }
 
 
@@ -292,8 +304,12 @@ public class MainActivity extends AppCompatActivity {
         }
         String recipient = recipientInput.getText() == null ? "" :
                 recipientInput.getText().toString().trim();
-        if (!activeEmail.equalsIgnoreCase(recipient)) {
-            status("V1 test mode only sends to the currently authorized sender address.");
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(recipient).matches()) {
+            status("Enter a valid recipient email address.");
+            return;
+        }
+        if (!db.isRecipientAuthorized(recipient)) {
+            status("This address is not on your authorized recipients list. Open the menu to add it.");
             return;
         }
         if (!RateLimiter.canSend(this)) {
@@ -303,7 +319,7 @@ public class MainActivity extends AppCompatActivity {
         }
         new AlertDialog.Builder(this)
                 .setTitle("Confirm test email")
-                .setMessage("Send this single test message to " + activeEmail + "?\n\nSubject: " + preview.subject)
+                .setMessage("Send this single test message from " + activeEmail + " to " + recipient + "?\n\nSubject: " + preview.subject)
                 .setNegativeButton("Cancel", (d, w) -> {})
                 .setPositiveButton("Send one email", (d, w) -> sendConfirmed(recipient))
                 .show();
@@ -392,6 +408,78 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("Close", null)
                 .show();
+    }
+
+
+    private void showAddAuthorizedRecipient() {
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        input.setHint("name@example.com");
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+        LinearLayout wrapper = new LinearLayout(this);
+        wrapper.setPadding(pad, pad / 2, pad, 0);
+        wrapper.addView(input, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        new AlertDialog.Builder(this)
+                .setTitle("Add authorized address")
+                .setMessage("Only add someone who has agreed to receive your test emails.")
+                .setView(wrapper)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Add", (dialog, which) -> {
+                    String email = input.getText().toString().trim();
+                    if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                        status("Enter a valid email address.");
+                        return;
+                    }
+                    long result = db.addAuthorizedRecipient(email);
+                    if (result == -1) status("That address is already on the authorized list.");
+                    else {
+                        recipientInput.setText(email);
+                        status("Authorized recipient added: " + email);
+                    }
+                    refreshAuthorizedRecipients();
+                }).show();
+    }
+
+    private void refreshAuthorizedRecipients() {
+        if (authorizedList == null || db == null) return;
+        authorizedList.removeAllViews();
+        java.util.List<String> recipients = db.authorizedRecipients();
+        if (recipients.isEmpty()) {
+            TextView empty = new TextView(this);
+            empty.setText("No authorized addresses yet.");
+            empty.setTextColor(0xFF9AA4B2);
+            empty.setPadding(4, 18, 4, 18);
+            authorizedList.addView(empty);
+            return;
+        }
+        int pad = (int) (10 * getResources().getDisplayMetrics().density);
+        for (String email : recipients) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            row.setPadding(0, pad / 2, 0, pad / 2);
+            TextView address = new TextView(this);
+            address.setText(email);
+            address.setTextColor(0xFFE8ECF3);
+            address.setTextSize(13);
+            address.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            MaterialButton remove = new MaterialButton(this);
+            remove.setText("Remove");
+            remove.setTextSize(10);
+            remove.setMinWidth(0);
+            remove.setOnClickListener(v -> {
+                db.removeAuthorizedRecipient(email);
+                refreshAuthorizedRecipients();
+                status("Removed authorized recipient: " + email);
+            });
+            row.addView(address);
+            row.addView(remove);
+            authorizedList.addView(row);
+            android.view.View divider = new android.view.View(this);
+            divider.setBackgroundColor(0x334B5563);
+            authorizedList.addView(divider, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1));
+        }
     }
 
     private void status(String message) { statusView.setText("Status: " + message); }
