@@ -84,7 +84,6 @@ public class MainActivity extends AppCompatActivity {
         AuthorizationRequest.Builder builder = AuthorizationRequest.builder()
                 .setRequestedScopes(Arrays.asList(new Scope(GMAIL_SEND), new Scope(USER_EMAIL)));
         if (email == null) {
-            builder.setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT);
         } else {
             builder.setAccount(new Account(email, "com.google"));
         }
