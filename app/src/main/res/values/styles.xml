@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.MailCrusher" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.MailCrusher" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="colorPrimary">#171717</item>
         <item name="colorPrimaryVariant">#000000</item>
         <item name="colorOnPrimary">#FFFFFF</item>
