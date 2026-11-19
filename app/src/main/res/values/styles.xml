@@ -1,0 +1,12 @@
+<resources>
+    <style name="Theme.MailCrusher" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/mc_purple</item>
+        <item name="colorPrimaryVariant">@color/mc_purple</item>
+        <item name="colorOnPrimary">#100D18</item>
+        <item name="android:colorAccent">@color/mc_purple</item>
+        <item name="android:statusBarColor">@color/mc_bg</item>
+        <item name="android:navigationBarColor">@color/mc_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@color/mc_bg</item>
+    </style>
+</resources>
