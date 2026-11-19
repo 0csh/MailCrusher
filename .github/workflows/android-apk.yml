@@ -12,8 +12,13 @@ permissions:
 
 jobs:
   build:
-    name: Build MailCrusher debug APK
+    name: Build MailCrusher APK
     runs-on: ubuntu-latest
+    env:
+      MC_KEYSTORE_BASE64: ${{ secrets.MC_KEYSTORE_BASE64 }}
+      MC_KEYSTORE_PASSWORD: ${{ secrets.MC_KEYSTORE_PASSWORD }}
+      MC_KEY_ALIAS: ${{ secrets.MC_KEY_ALIAS }}
+      MC_KEY_PASSWORD: ${{ secrets.MC_KEY_PASSWORD }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -43,26 +48,55 @@ jobs:
             --output app/src/main/res/font/montserrat_variable.ttf
           test -s app/src/main/res/font/montserrat_variable.ttf
 
-      - name: Build debug APK
+      - name: Prepare stable release signing key
+        if: env.MC_KEYSTORE_BASE64 != ''
+        run: |
+          mkdir -p app/keystore
+          printf '%s' "$MC_KEYSTORE_BASE64" | base64 --decode > app/keystore/mailcrusher-release.jks
+          test -s app/keystore/mailcrusher-release.jks
+          echo "MC_KEYSTORE_PATH=$GITHUB_WORKSPACE/app/keystore/mailcrusher-release.jks" >> "$GITHUB_ENV"
+
+      - name: Print Android OAuth SHA-1 fingerprint
+        if: env.MC_KEYSTORE_BASE64 != ''
+        run: |
+          keytool -list -v -keystore app/keystore/mailcrusher-release.jks \
+            -storepass "$MC_KEYSTORE_PASSWORD" -alias "$MC_KEY_ALIAS" | grep -E 'SHA1:|SHA-1:'
+
+      - name: Build stable signed release APK
+        if: env.MC_KEYSTORE_BASE64 != ''
+        run: gradle --no-daemon :app:assembleRelease
+
+      - name: Build debug APK (CI fallback only)
+        if: env.MC_KEYSTORE_BASE64 == ''
         run: gradle --no-daemon :app:assembleDebug
 
-      - name: Upload APK artifact
+      - name: Upload debug APK artifact
+        if: env.MC_KEYSTORE_BASE64 == ''
         uses: actions/upload-artifact@v4
         with:
-          name: MailCrusher-debug-apk
+          name: MailCrusher-debug-apk-unsigned-for-OAuth
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish latest GitHub Release with standalone APK
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Upload stable release APK artifact
+        if: env.MC_KEYSTORE_BASE64 != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: MailCrusher-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish latest stable APK in GitHub Releases
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.MC_KEYSTORE_BASE64 != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           target_commitish: main
           name: MailCrusher - Latest
-          body: Latest successful Android APK build. Download the APK asset below.
+          body: Stable signed Android APK. The SHA-1 fingerprint is printed in the successful build log; register it in the Android OAuth client for package com.mailcrusher.
           make_latest: true
           overwrite_files: true
           fail_on_unmatched_files: true
-          files: app/build/outputs/apk/debug/app-debug.apk
+          files: app/build/outputs/apk/release/app-release.apk
