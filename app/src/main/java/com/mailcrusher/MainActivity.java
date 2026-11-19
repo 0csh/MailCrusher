@@ -45,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
     private String latestSentMessageId;
     private TextInputEditText messageCountInput;
     private TextView accountView, previewView, statusView;
-    private TextInputEditText recipientInput, subjectLengthInput, bodyLengthInput;
+    private TextInputEditText recipientInput, subjectInput, bodyInput;
     private DrawerLayout drawerLayout;
     private LinearLayout authorizedList;
 
@@ -88,8 +88,8 @@ public class MainActivity extends AppCompatActivity {
         previewView = findViewById(R.id.txtPreview);
         statusView = findViewById(R.id.txtStatus);
         recipientInput = findViewById(R.id.edtRecipient);
-        subjectLengthInput = findViewById(R.id.edtSubjectLength);
-        bodyLengthInput = findViewById(R.id.edtBodyLength);
+        subjectInput = findViewById(R.id.edtSubject);
+        bodyInput = findViewById(R.id.edtBody);
         messageCountInput = findViewById(R.id.edtMessageCount);
         drawerLayout = findViewById(R.id.drawerLayout);
         authorizedList = findViewById(R.id.authorizedList);
@@ -270,16 +270,22 @@ public class MainActivity extends AppCompatActivity {
 
     private void generatePreview() {
         try {
-            int subjectLength = Integer.parseInt(subjectLengthInput.getText().toString());
-            int bodyLength = Integer.parseInt(bodyLengthInput.getText().toString());
-            int count = Integer.parseInt(messageCountInput.getText().toString());
+            String baseSubject = subjectInput.getText() == null ? "" : subjectInput.getText().toString().trim();
+            String body = bodyInput.getText() == null ? "" : bodyInput.getText().toString().trim();
+            int count = Integer.parseInt(messageCountInput.getText().toString().trim());
+            if (baseSubject.isEmpty()) throw new IllegalArgumentException("Enter a subject.");
+            if (body.isEmpty()) throw new IllegalArgumentException("Enter the message body.");
+            if (baseSubject.length() > 120) throw new IllegalArgumentException("Subject must be 120 characters or fewer.");
+            if (body.length() > 10000) throw new IllegalArgumentException("Message body must be 10,000 characters or fewer.");
             if (count < 1 || count > 5) {
                 throw new IllegalArgumentException("Message count must be between 1 and 5.");
             }
+
             generatedMessages.clear();
             StringBuilder output = new StringBuilder();
             for (int i = 1; i <= count; i++) {
-                GeneratedMessage generated = MessageGenerator.create(subjectLength, bodyLength);
+                String subject = count > 1 ? baseSubject + " (" + i + ")" : baseSubject;
+                GeneratedMessage generated = new GeneratedMessage(subject, body);
                 generatedMessages.add(generated);
                 if (i > 1) output.append("\\n\\n━━━━━━━━━━━━━━━━━━━━\\n\\n");
                 output.append("MESSAGE ").append(i)
@@ -291,7 +297,7 @@ public class MainActivity extends AppCompatActivity {
             previewView.setTranslationY(6f);
             previewView.setText(output.toString());
             previewView.animate().alpha(1f).translationY(0f).setDuration(220L).start();
-            status(count + " message(s) generated. Review all messages before sending.");
+            status(count + " customized test message(s) generated. Review before sending.");
         } catch (Exception e) { status("Invalid settings: " + e.getMessage()); }
     }
 
