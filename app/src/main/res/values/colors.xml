@@ -1,7 +1,10 @@
 <resources>
-    <color name="mc_bg">#FFFFFF</color>
-    <color name="mc_surface">#F5F5F5</color>
-    <color name="mc_purple">#111111</color>
-    <color name="mc_text">#171717</color>
-    <color name="mc_muted">#737373</color>
+    <color name="mc_bg">#0B0D10</color>
+    <color name="mc_surface">#14181E</color>
+    <color name="mc_surface_alt">#191E25</color>
+    <color name="mc_purple">#A78BFA</color>
+    <color name="mc_text">#F4F5F7</color>
+    <color name="mc_muted">#929AA6</color>
+    <color name="mc_outline">#343B46</color>
+    <color name="mc_button">#191E25</color>
 </resources>
