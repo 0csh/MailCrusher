@@ -10,7 +10,7 @@ import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
 import android.view.animation.LinearInterpolator;
 
-/** Very subtle moving light fields on a clean white background. */
+/** Subtle ambient motion over the dark MailCrusher surface. */
 public final class AnimatedAmbientDrawable extends Drawable {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private float phase;
@@ -32,7 +32,7 @@ public final class AnimatedAmbientDrawable extends Drawable {
         float w = b.width();
         float h = b.height();
         paint.setShader(new LinearGradient(0, 0, w, h,
-                new int[]{Color.WHITE, Color.rgb(250, 250, 250), Color.WHITE},
+                new int[]{Color.rgb(11, 13, 16), Color.rgb(14, 16, 21), Color.rgb(11, 13, 16)},
                 null, Shader.TileMode.CLAMP));
         canvas.drawRect(b, paint);
 
@@ -40,14 +40,14 @@ public final class AnimatedAmbientDrawable extends Drawable {
         float x1 = w * (0.18f + 0.07f * (float) Math.sin(phase));
         float y1 = h * (0.18f + 0.05f * (float) Math.cos(phase));
         paint.setShader(new RadialGradient(x1, y1, radius,
-                new int[]{0x18A0A0A0, 0x08777777, 0x00FFFFFF},
+                new int[]{0x187C5CC4, 0x087C5CC4, 0x000B0D10},
                 new float[]{0f, 0.48f, 1f}, Shader.TileMode.CLAMP));
         canvas.drawRect(b, paint);
 
         float x2 = w * (0.82f + 0.05f * (float) Math.cos(phase * 0.8f));
         float y2 = h * (0.72f + 0.06f * (float) Math.sin(phase * 0.8f));
         paint.setShader(new RadialGradient(x2, y2, radius * 0.8f,
-                new int[]{0x12B0B0B0, 0x05777777, 0x00FFFFFF},
+                new int[]{0x1292A0B8, 0x0592A0B8, 0x000B0D10},
                 new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP));
         canvas.drawRect(b, paint);
         paint.setShader(null);
